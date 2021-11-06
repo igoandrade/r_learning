@@ -1,0 +1,239 @@
+---
+title: "Manipulação de dados"
+author: "Igo da Costa Andrade"
+date: "04/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, echo=FALSE}
+# Básicos
+# install.packages("mlbench")
+library(magrittr)
+library(ggplot2)
+library(mlbench)
+library(readr)
+library(dplyr)
+library(tidyr)
+
+# Dadasets de exemplos
+library(datasets)
+
+# Opcionais
+library(knitr)
+```
+
+Pacotes necessários:
+
+* Básicos:
+  - `magrittr`
+  - `ggplot2`
+  - `mlbench`
+  - `readr`
+  - `dplyr`
+  - `tidyr`
+* _Datasets_ de exemplos:
+  - `datasets`
+* Opcionais:
+  - `knitr`
+
+Como exemplo, vamos utilizar o _dataset_ `cars` incluído do pacote `datasets`. Esse _dataset_ consiste em duas colunas: uma de velocidades e a outra de distâncias de frenagem para diversos carros. A tabela abaixo mostra os primeiros registros desse conjunto de dados:
+  
+```{r cars, echo=FALSE}
+data(cars)
+kable(head(cars))
+```
+
+A seguir mostramos um gráfico básico do dados do _dataset_ `cars`:
+```{r plot-cars, echo=FALSE}
+cars %>% qplot(speed, dist, data = .)
+```
+
+Finalmente, apresentamos as estatísticas resumidas do dataset `cars`:
+
+
+```{r echo=FALSE}
+summary(cars)
+```
+
+## Exemplos de leitura e formatação de datasets
+
+### Conjunto de dados `BreastCancer`
+
+```{r }
+data_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data"
+
+# Leitura dos dados a partir da url
+lines <- readLines(data_url)
+
+# salvamento do dados em um arquivo csv
+writeLines(lines, con = "data/raw-breast-cancer.csv")
+```
+
+Depois de salvar os dados baixados da internete em um arquivo csv local, podemos efetuar a leitura dos dados na forma de um _dataframe_:
+
+```{r }
+data("BreastCancer")
+raw_breast_cancer <- read.csv("data/raw-breast-cancer.csv", header = FALSE)
+names(raw_breast_cancer) <- names(BreastCancer)
+raw_breast_cancer %>% head(3)
+```
+
+
+As etapas mostradas acima podem ser realizadas todas de uma vez como mostrado abaixo:
+
+```{r}
+
+raw_breast_cancer <- read.csv(data_url, header = FALSE, col.names = names(BreastCancer))
+
+raw_breast_cancer %>% head(3)
+```
+
+
+```{r}
+formatted_breast_cancer <- raw_breast_cancer
+
+map_class <- function(x){
+  ifelse(x == 2, "bening",
+  ifelse(x == 4, "malignant", 
+         NA))
+}
+
+mapped <- formatted_breast_cancer$Class %>% map_class
+
+mapped %>% table
+```
+
+### Boston Housing Dataset
+```{r}
+data("BostonHousing")
+col_classes <- rep("numeric", length(BostonHousing))
+col_classes[which("chas" == names(BostonHousing))] <- "factor"
+
+data_url <- "http://tinyurl.com/zq2u8vx"
+boston_housing <- read.table(data_url, col.names = names(BostonHousing), colClasses = col_classes) 
+
+str(boston_housing)
+```
+
+
+```{r}
+data(iris)
+iris %>% as_tibble()
+
+iris %>% group_by(Species) %>%
+  summarise(Mean.Petal.Length = mean(Petal.Length))
+```
+
+
+### Manipulação do conjunto de dado Breast Cancer
+
+
+```{r}
+formatted_breast_cancer <- raw_breast_cancer %>% 
+  mutate(Class = Class %>% {
+    c("2" = "Bening", "4" = "Malignant")[as.character(.)]
+  } %>% 
+    unname %>%
+    factor(levels = c("Bening", "Malignant")))
+
+formatted_breast_cancer %>% head() %>% kable()
+
+
+formatted_breast_cancer %>% 
+  group_by(Class) %>%
+  summarise(mean.thickness = mean(Cl.thickness))
+
+
+formatted_breast_cancer %>% 
+  group_by(Class) %>%
+  summarise(mean.size = mean(Cell.size))
+```
+
+## Usando _pipelines_ para construir gráficos
+
+```{r}
+iris %>% select(Species, Petal.Length) %>%
+  qplot(Species, Petal.Length, geom = "boxplot", data = .)
+```
+
+Podemos criar o mesmo gráfico de outra forma por meio da função `gather()` do pacote `tidyr`:
+
+```{r}
+iris %>% gather(key = Attribute, value = Measurement, 
+                Sepal.Length, Sepal.Width) %>% 
+  select(Species, Attribute, Measurement) %>%
+  qplot(Attribute, Measurement,
+        geom = "boxplot", facets = . ~ Species, data = .)
+```
+
+## Exercícios
+
+### Importando dados
+
+Para treinar as etapas de importação e transformação de dados, você precisa tentar por conta própria. Então, tente encontrar os conjuntos de dados que você quer importar. Você pode fazer isso utilizando um dos repositórios listados abaixo:
+
+* RDataMining.com (http://www.rdatamining.com/resources/data)
+* UCI machine learning repository (http://archive.ics.uci.edu/ml/)
+* KDNuggets (http://www.kdnuggets.com/datasets/index.html)
+* Reddit r/datasets (https://www.reddit.com/r/datasets)
+* GitHub awesome public datasets (https://github.com/caesar0301/awesomepublic-datasets)
+
+Ou talvez você já tenha um conjunto de dados que queira analisar.
+
+Dê uma olhada em seu conjunto de dados e descubra qual função de importação você precisa. Pode ser necessário definir alguns parâmetros na função para carregar os dados corretamente, mas com um pouco de esforço, você conseguirá. Para nomes de coluna, você deve escolher alguns apropriados na leitura da descrição dos dados ou, se estiver carregando algo que já esteja no mlbench, pode trapacear como fiz nos exemplos.
+
+#### Facebook metrics data set
+
+Fonte: http://archive.ics.uci.edu/ml/datasets/Facebook+metrics.
+
+```{r}
+
+fb_metrics <- read.csv("data/dataset_Facebook.csv", sep = ";", header = TRUE)
+
+fb_metrics %>% head() %>% kable()
+
+```
+
+
+
+### Usando `dplyr`
+
+Agora pegue os dados que você acabou de importar e examine os vários resumos. Não é tão importante o que você olha nos dados, mas sim tentar resumir os diferentes aspectos deles. Veremos as análises adequadas mais tarde. Por enquanto, apenas use `dplyr` para explorar seus dados.
+
+
+```{r}
+fb_metrics %>% group_by(Type) %>%
+  summarise(Total.likes = sum(Page.total.likes)) %>% 
+  arrange(desc(Total.likes)) %>%
+  kable()
+```
+
+### Usando `tidyr`
+
+Veja o exemplo `dplyr` neste capítulo. Lá eu plotei `Sepal.Length` e `Sepal.Width` para cada espécie.
+
+Faça o mesmo para `Petal.Length` e `Petal.Width`.
+Se houver algo semelhante que você possa fazer com o conjunto de dados importados  no primeiro exercício, tente fazer com esse conjunto de dados também.
+
+```{r}
+fb_metrics %>% select(Page.total.likes, Post.Month) %>%
+  group_by(Post.Month) %>%
+  summarise(Total.likes = sum(Page.total.likes)) %>%
+  kable()
+  
+```
+
+
+```{r}
+fb_metrics %>% select(Type, Category, share) %>%
+  filter(share < 200) %>%
+  qplot(Type, share, geom = "boxplot", facets = . ~ Category, data = .)
+```
+
+
+
+
